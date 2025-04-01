@@ -209,4 +209,4 @@ cp terraform-provider-scalardb ~/.terraform.d/plugins/registry.terraform.io/scal
 
 ## ライセンス
 
-[Apache License 2.0](LICENSE)
+[MIT License](LICENSE)
