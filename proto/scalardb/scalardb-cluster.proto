@@ -1,0 +1,2633 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.scalar.db.cluster.rpc.v1";
+option java_outer_classname = "ScalarDbClusterProto";
+option go_package = "github.com/scalar-labs/terraform-provider-scalardb/proto/scalardb";
+
+package scalardb.cluster.rpc.v1;
+
+// A column of a record that has a name and a value.
+// See also: https://github.com/scalar-labs/scalardb/blob/master/docs/design.md#data-model
+message Column {
+  // A Boolean value. If the value is not set, indicates null.
+  message BooleanValue {
+    optional bool value = 1;
+  }
+
+  // An Int value. If the value is not set, indicates null.
+  message IntValue {
+    optional int32 value = 1;
+  }
+
+  // A BigInt value. If the value is not set, indicates null.
+  message BigIntValue {
+    optional int64 value = 1;
+  }
+
+  // A Float value. If the value is not set, indicates null.
+  message FloatValue {
+    optional float value = 1;
+  }
+
+  // A Double value. If the value is not set, indicates null.
+  message DoubleValue {
+    optional double value = 1;
+  }
+
+  // A Text value. If the value is not set, indicates null.
+  message TextValue {
+    optional string value = 1;
+  }
+
+  // A Blob value. If the value is not set, indicates null.
+  message BlobValue {
+    optional bytes value = 1;
+  }
+
+  // A Date value. If the value is not set, indicates null.
+  message DateValue {
+    // The epochDay value of the Date. It is an incrementing count of days
+    // where day 0 is 1970-01-01. Negative numbers represent earlier days.
+    optional sint32 value = 1;
+  }
+
+  // A Time value. If the value is not set, indicates null.
+  message TimeValue {
+    // The nanoOfDay value of the Time. It is the number of nanoseconds from the
+    // start of the day.
+    optional int64 value = 1;
+  }
+
+  // A Timestamp value. If the value is not set, indicates null.
+  message TimestampValue {
+    // Even though the Timestamp value represents a date-time without a time zone,
+    // for encoding purpose we consider as if it is a timestamp in the UTC
+    // timezone. The value can then be encoded identically as a TimestampTZValue.
+    optional sint64 value = 1;
+  }
+
+  // A TimestampTZ value. If the value is not set, indicates null.
+  message TimestampTZValue {
+    // The value format is "<epochSecond><millisecondOfSecond>", where the
+    // rightmost 3 digits are the millisecondOfSecond with a value from 000 to
+    // 999, the other digits on the left are the epochSecond:
+    // - epochSecond is the number of seconds from 1970-01-01T00:00:00Z
+    // - millisecondOfSecond is the number of milliseconds from the start of the
+    // second
+    //
+    // To preserve the timestamptz ordering if the epochSecond is negative (in case
+    // a timestamptz value is before 1970), the millisecondOfSecond is converted
+    // to its complement with the formula "complementOfN = 1000 - 1 - N", where
+    // N is the millisecondOfSecond.
+    //
+    // For example:
+    // - if epochSecond=12345 and millisecondOfSecond=789, then the resulting
+    // value will be "12345789"
+    // - if epochSecond=-12345 and millisecondOfSecond=789, then
+    //   millisecondOfSecondComplement = 1000 - 1 - 789 = 210. So the resulting
+    //   value will be "-12345210".
+    optional sint64 value = 1;
+  }
+
+  // The column name.
+  string name = 1;
+
+  // The column value. It's a oneof value for each data type.
+  oneof value {
+    // For the Boolean value.
+    BooleanValue boolean_value = 2;
+
+    // For the Int value.
+    IntValue int_value = 3;
+
+    // For the BigInt value.
+    BigIntValue bigint_value = 4;
+
+    // For the Float value.
+    FloatValue float_value = 5;
+
+    // For the Double value.
+    DoubleValue double_value = 6;
+
+    // For the Text value.
+    TextValue text_value = 7;
+
+    // For the Blob value.
+    BlobValue blob_value = 8;
+
+    // For the Date value.
+    DateValue date_value = 9;
+
+    // For the Time value.
+    TimeValue time_value = 10;
+
+    // For the Timestamp value.
+    TimestampValue timestamp_value = 11;
+
+    // For the TimestampTZ value.
+    TimestampTZValue timestamptz_value = 12;
+  }
+}
+
+// A key for partition key and clustering key.
+// See also: https://github.com/scalar-labs/scalardb/blob/master/docs/design.md#data-model
+message Key {
+  // The columns that compose a key.
+  repeated Column columns = 1;
+}
+
+// A conjunction that's specified in Get and Scan operations.
+message Conjunction {
+  repeated ConditionalExpression conditional_expressions = 1;
+}
+
+// Specifies parameters for Get.
+message Get {
+  // Get type.
+  enum GetType {
+    // The default / unset value.
+    GET_TYPE_UNSPECIFIED = 0;
+
+    // Regular get.
+    GET_TYPE_GET = 1;
+
+    // Get with index.
+    GET_TYPE_GET_WITH_INDEX = 2;
+  }
+
+  // The namespace name of the target table of the get operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the get operation.
+  string table_name = 2;
+
+  // The type of the get operation.
+  GetType get_type = 3;
+
+  // The partition key of the record to retrieve. If the get type is GET_TYPE_GET_WITH_INDEX,
+  // specify an index key as a partition key.
+  Key partition_key = 4;
+
+  // The clustering key of the record to retrieve.
+  optional Key clustering_key = 5;
+
+  // The column names that are projected.
+  repeated string projections = 6;
+
+  // The disjunctive (or-wise) set of conjunctions.
+  repeated Conjunction conjunctions = 7;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 8;
+}
+
+// Specifies parameters for Scan.
+message Scan {
+  // Scan type.
+  enum ScanType {
+    // The default / unset value.
+    SCAN_TYPE_UNSPECIFIED = 0;
+
+    // Regular scan.
+    SCAN_TYPE_SCAN = 1;
+
+    // Scan with index.
+    SCAN_TYPE_SCAN_WITH_INDEX = 2;
+
+    // Scan all (scanning records in all partitions).
+    SCAN_TYPE_SCAN_ALL = 3;
+  }
+
+  // A ordering that's specified in Scan operation.
+  message Ordering {
+    // Scan order.
+    enum Order {
+      // The default / unset value.
+      ORDER_UNSPECIFIED = 0;
+
+      // Ascending order.
+      ORDER_ASC = 1;
+
+      // Descending order.
+      ORDER_DESC = 2;
+    }
+
+    // The target column name.
+    string column_name = 1;
+
+    // The clustering order for the clustering key column.
+    Order order = 2;
+  }
+
+  // The namespace name of the target table of the scan operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the scan operation.
+  string table_name = 2;
+
+  // The type of the scan operation.
+  ScanType scan_type = 3;
+
+  // The partition key of the records to scan. If the scan type is SCAN_TYPE_SCAN_WITH_INDEX,
+  // specify an index key as a partition key. If the scan type is SCAN_TYPE_SCAN_ALL, don't specify
+  // this field.
+  optional Key partition_key = 4;
+
+  // The column names that are projected.
+  repeated string projections = 5;
+
+  // The clustering key at which to start the range. The scan types, SCAN_TYPE_SCAN_WITH_INDEX and
+  // SCAN_TYPE_SCAN_ALL, don't support the range scan.
+  optional Key start_clustering_key = 6;
+
+  // Whether the starting point of the scan range is inclusive or not.
+  bool start_inclusive = 7;
+
+  // The clustering key at which to end the range. The scan types, SCAN_TYPE_SCAN_WITH_INDEX and
+  // SCAN_TYPE_SCAN_ALL, don't support the range scan.
+  optional Key end_clustering_key = 8;
+
+  // Whether the end point of the scan range is inclusive or not.
+  bool end_inclusive = 9;
+
+  // The scan ordering. The scan types, SCAN_TYPE_SCAN_WITH_INDEX and SCAN_TYPE_SCAN_ALL, don't
+  // support the scan ordering.
+  repeated Ordering orderings = 10;
+
+  // The number of results to be returned.
+  int32 limit = 11;
+
+  // The disjunctive (or-wise) set of conjunctions.
+  repeated Conjunction conjunctions = 12;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 13;
+}
+
+// A conditional expression for conditional mutations.
+message ConditionalExpression {
+  // A operator for conditional expression.
+  enum Operator {
+    // The default / unset value.
+    OPERATOR_UNSPECIFIED = 0;
+
+    // Operator for `Equal`.
+    OPERATOR_EQ = 1;
+
+    // Operator for `Not Equal`.
+    OPERATOR_NE = 2;
+
+    // Operator for `Greater Than`.
+    OPERATOR_GT = 3;
+
+    // Operator for `Greater Than or Equal`.
+    OPERATOR_GTE = 4;
+
+    // Operator for `Less Than`.
+    OPERATOR_LT = 5;
+
+    // Operator for `Less Than or Equal`.
+    OPERATOR_LTE = 6;
+
+    // Operator for `Is Null`.
+    OPERATOR_IS_NULL = 7;
+
+    // Operator for `Is Not Null`.
+    OPERATOR_IS_NOT_NULL = 8;
+
+    // Operator for `Like`.
+    OPERATOR_LIKE = 9;
+
+    // Operator for `Not Like`.
+    OPERATOR_NOT_LIKE = 10;
+  }
+
+  // The target column and value of the conditional expression.
+  Column column = 1;
+
+  // The operator of the conditional expression.
+  Operator operator = 2;
+
+  // The escape character for the LIKE operator.
+  optional string escape = 3;
+}
+
+// Specifies parameters for Put.
+// This is deprecated As of release 3.13.0. Will be removed in release 5.0.0.
+message Put {
+  option deprecated = true;
+
+  // The namespace name of the target table of the put operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the put operation.
+  string table_name = 2;
+
+  // The partition key of the record to put.
+  Key partition_key = 3;
+
+  // The clustering key of the record to put.
+  optional Key clustering_key = 4;
+
+  // The non-key columns of the record to put.
+  repeated Column columns = 5;
+
+  // A condition for the put operation.
+  message PutCondition {
+    // A condition type for the put operation.
+    enum PutConditionType {
+      // The default / unset value.
+      PUT_CONDITION_TYPE_UNSPECIFIED = 0;
+
+      // Condition type for `PutIf`.
+      PUT_CONDITION_TYPE_IF = 1;
+
+      // Condition type for `PutIfExists`.
+      PUT_CONDITION_TYPE_IF_EXISTS = 2;
+
+      // Condition type for `PutIfNotExists`.
+      PUT_CONDITION_TYPE_IF_NOT_EXISTS = 3;
+    }
+
+    // The type of the condition for the put operation.
+    PutConditionType put_condition_type = 1;
+
+    // The conditional expressions of the condition for the put operation. This field needs to be
+    // set if the condition type is `PUT_CONDITION_TYPE_IF`.
+    repeated ConditionalExpression conditional_expressions = 2;
+  }
+
+  // The conditions for the put operation.
+  optional PutCondition put_condition = 6;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 7;
+}
+
+// Specifies parameters for Insert.
+message Insert {
+  // The namespace name of the target table of the insert operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the insert operation.
+  string table_name = 2;
+
+  // The partition key of the record to insert.
+  Key partition_key = 3;
+
+  // The clustering key of the record to insert.
+  optional Key clustering_key = 4;
+
+  // The non-key columns of the record to insert.
+  repeated Column columns = 5;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 6;
+}
+
+// Specifies parameters for Upsert.
+message Upsert {
+  // The namespace name of the target table of the upsert operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the upsert operation.
+  string table_name = 2;
+
+  // The partition key of the record to upsert.
+  Key partition_key = 3;
+
+  // The clustering key of the record to upsert.
+  optional Key clustering_key = 4;
+
+  // The non-key columns of the record to upsert.
+  repeated Column columns = 5;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 6;
+}
+
+// Specifies parameters for Update.
+message Update {
+  // The namespace name of the target table of the update operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the update operation.
+  string table_name = 2;
+
+  // The partition key of the record to update.
+  Key partition_key = 3;
+
+  // The clustering key of the record to update.
+  optional Key clustering_key = 4;
+
+  // The non-key columns of the record to update.
+  repeated Column columns = 5;
+
+  // A condition for the Update operation.
+  message UpdateCondition {
+    // A condition type for the update operation.
+    enum UpdateConditionType {
+      // The default / unset value.
+      UPDATE_CONDITION_TYPE_UNSPECIFIED = 0;
+
+      // Condition type for `UpdateIf`.
+      UPDATE_CONDITION_TYPE_IF = 1;
+
+      // Condition type for `UpdateIfExists`.
+      UPDATE_CONDITION_TYPE_IF_EXISTS = 2;
+    }
+
+    // The type of the condition for the update operation.
+    UpdateConditionType update_condition_type = 1;
+
+    // The conditional expressions of the condition for the update operation. This field needs to be
+    // set if the condition type is `UPDATE_CONDITION_TYPE_IF`.
+    repeated ConditionalExpression conditional_expressions = 2;
+  }
+
+  // The conditions for the update operation.
+  optional UpdateCondition update_condition = 6;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 7;
+}
+
+// Specifies parameters for Delete.
+message Delete {
+  // The namespace name of the target table of the delete operation.
+  string namespace_name = 1;
+
+  // The table name of the the target table of the delete operation.
+  string table_name = 2;
+
+  // The partition key of the record to delete.
+  Key partition_key = 3;
+
+  // The clustering key of the record to delete.
+  optional Key clustering_key = 4;
+
+  // A condition for the delete operation.
+  message DeleteCondition {
+    // A condition type for the delete operation.
+    enum DeleteConditionType {
+      // The default / unset value.
+      DELETE_CONDITION_TYPE_UNSPECIFIED = 0;
+
+      // Condition type for `DeleteIf`.
+      DELETE_CONDITION_TYPE_IF = 1;
+
+      // Condition type for `DeleteIfExists`.
+      DELETE_CONDITION_TYPE_IF_EXISTS = 2;
+    }
+
+    // The type of the condition for the delete operation.
+    DeleteConditionType delete_condition_type = 1;
+
+    // The conditional expressions of the condition for the delete operation. This needs to be set
+    // if the condition type is `DELETE_CONDITION_TYPE_IF`.
+    repeated ConditionalExpression conditional_expressions = 2;
+  }
+
+  // The conditions for the delete operation.
+  optional DeleteCondition delete_condition = 5;
+
+  // The attributes for the operation.
+  map<string, string> attributes = 6;
+}
+
+// Specifies parameters for Mutation.
+message Mutation {
+  // The mutation.
+  oneof mutation {
+    // For Put.
+    Put put = 1;
+
+    // For Delete.
+    Delete delete = 2;
+
+    // For Insert.
+    Insert insert = 3;
+
+    // For Upsert.
+    Upsert upsert = 4;
+
+    // For Update.
+    Update update = 5;
+  }
+}
+
+// A result (record) of a get/scan operation.
+message Result {
+  // The columns of the record.
+  repeated Column columns = 1;
+}
+
+// Data type in ScalarDB.
+enum DataType {
+  // The default / unset value.
+  DATA_TYPE_UNSPECIFIED = 0;
+
+  // Boolean type.
+  DATA_TYPE_BOOLEAN = 1;
+
+  // Int type.
+  DATA_TYPE_INT = 2;
+
+  // BigInt type.
+  DATA_TYPE_BIGINT = 3;
+
+  // Float type.
+  DATA_TYPE_FLOAT = 4;
+
+  // Double type.
+  DATA_TYPE_DOUBLE = 5;
+
+  // Text type.
+  DATA_TYPE_TEXT = 6;
+
+  // Blob type.
+  DATA_TYPE_BLOB = 7;
+
+  // Date type.
+  DATA_TYPE_DATE = 8;
+
+  // Time type.
+  DATA_TYPE_TIME = 9;
+
+  // Timestamp type.
+  DATA_TYPE_TIMESTAMP = 10;
+
+  // TimestampTZ type.
+  DATA_TYPE_TIMESTAMPTZ = 11;
+}
+
+// Clustering order.
+enum ClusteringOrder {
+  // The default / unset value.
+  CLUSTERING_ORDER_UNSPECIFIED = 0;
+
+  // Ascending order.
+  CLUSTERING_ORDER_ASC = 1;
+
+  // Descending order.
+  CLUSTERING_ORDER_DESC = 2;
+}
+
+// Table metadata in ScalarDB.
+message TableMetadata {
+  // The map of column names and data types.
+  map<string, DataType> columns = 1;
+
+  // The partition key column names.
+  repeated string partition_key_column_names = 2;
+
+  // The clustering key column names.
+  repeated string clustering_key_column_names = 3;
+
+  // The map of clustering key column names and clustering orders
+  map<string, ClusteringOrder> clustering_orders = 4;
+
+  // The secondary index column names
+  repeated string secondary_index_column_names = 5;
+
+  // The encrypted columns
+  repeated string encrypted_columns = 6;
+}
+
+// Request header for all requests.
+message RequestHeader {
+  // The hop limit used to restrict the hop count within the cluster.
+  int32 hop_limit = 1;
+
+  // The auth token for authentication.
+  optional string auth_token = 2;
+}
+
+// Service that provides a distributed transaction capability for ScalarDB Cluster.
+//
+// First, you call `Begin` to initiate a transaction. Then, you can call `Get` and `Scan` to read
+// records, `Put`, `Insert`, `Upsert`, `Update`, and `Mutate` to write records, and `Delete` and
+// `Mutate` to delete records. To finalize the transaction, call `Commit`. Alternatively, you can
+// call `Rollback` at any time before the transaction is committed to cancel it. By calling `Begin`,
+// you receive a transaction ID in the response, which you can then use to call `Get`, `Scan`, `Put`
+// , `Insert`, `Upsert`, `Update`, `Delete`, `Mutate`, `Commit`, and `Rollback`.
+//
+// Also, you can call `Get`, `Scan`, `Put`, `Insert`, `Upsert`, `Update`, `Delete`, `Mutate` without
+// a transaction ID. In this case, the operation is executed within a one-shot transaction.
+service DistributedTransaction {
+  // Begins a transaction.
+  rpc Begin(BeginRequest) returns (BeginResponse) {
+  }
+
+  // Retrieves records.
+  rpc Get(GetRequest) returns (GetResponse) {
+  }
+
+  // Scans records.
+  rpc Scan(ScanRequest) returns (ScanResponse) {
+  }
+
+  // Puts records.
+  // This is deprecated As of release 3.13.0. Will be removed in release 5.0.0.
+  rpc Put(PutRequest) returns (PutResponse) {
+    option deprecated = true;
+  }
+
+  // Inserts records.
+  rpc Insert(InsertRequest) returns (InsertResponse) {
+  }
+
+  // Upserts records.
+  rpc Upsert(UpsertRequest) returns (UpsertResponse) {
+  }
+
+  // Updates records.
+  rpc Update(UpdateRequest) returns (UpdateResponse) {
+  }
+
+  // Deletes records.
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {
+  }
+
+  // Mutates (puts, inserts, upserts, updates, and deletes) multiple records.
+  rpc Mutate(MutateRequest) returns (MutateResponse) {
+  }
+
+  // Commits a transaction.
+  rpc Commit(CommitRequest) returns (CommitResponse) {
+  }
+
+  // Rolls back a transaction.
+  rpc Rollback(RollbackRequest) returns (RollbackResponse) {
+  }
+}
+
+// Request message for DistributedTransaction.Begin and TwoPhaseCommitTransaction.Begin.
+message BeginRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // You can optionally specify a transaction ID when you begin a transaction. If you specify a
+  // transaction ID, it is the users' responsibility to guarantee the uniqueness of the ID.
+  optional string transaction_id = 2;
+}
+
+// Response message for DistributedTransaction.Begin and TwoPhaseCommitTransaction.Begin.
+message BeginResponse {
+  // The transaction ID of the begun transaction. You need to set it to the following requests.
+  string transaction_id = 1;
+}
+
+// Request message for DistributedTransaction.Get and TwoPhaseCommitTransaction.Get.
+message GetRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Get.
+  Get get = 3;
+}
+
+// Response message for DistributedTransaction.Get and TwoPhaseCommitTransaction.Get.
+message GetResponse {
+  // A result (record) for Get.
+  optional Result result = 1;
+}
+
+// Request message for DistributedTransaction.Scan and TwoPhaseCommitTransaction.Scan.
+message ScanRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Scan.
+  Scan scan = 3;
+}
+
+// Response message for DistributedTransaction.Scan and TwoPhaseCommitTransaction.Scan.
+message ScanResponse {
+  // Results (records) for Scan.
+  repeated Result results = 1;
+}
+
+// Request message for DistributedTransaction.Put and TwoPhaseCommitTransaction.Put.
+// This is deprecated As of release 3.13.0. Will be removed in release 5.0.0.
+message PutRequest {
+  option deprecated = true;
+
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Put.
+  repeated Put puts = 3;
+}
+
+// Response message for DistributedTransaction.Put and TwoPhaseCommitTransaction.Put.
+// This is deprecated As of release 3.13.0. Will be removed in release 5.0.0.
+message PutResponse {
+  option deprecated = true;
+}
+
+// Request message for DistributedTransaction.Insert and TwoPhaseCommitTransaction.Insert.
+message InsertRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Insert.
+  repeated Insert inserts = 3;
+}
+
+// Response message for DistributedTransaction.Insert and TwoPhaseCommitTransaction.Insert.
+message InsertResponse {
+}
+
+// Request message for DistributedTransaction.Upsert and TwoPhaseCommitTransaction.Upsert.
+message UpsertRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Upsert.
+  repeated Upsert upserts = 3;
+}
+
+// Response message for DistributedTransaction.Upsert and TwoPhaseCommitTransaction.Upsert.
+message UpsertResponse {
+}
+
+// Request message for DistributedTransaction.Update and TwoPhaseCommitTransaction.Update.
+message UpdateRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Update.
+  repeated Update updates = 3;
+}
+
+// Response message for DistributedTransaction.Update and TwoPhaseCommitTransaction.Update.
+message UpdateResponse {
+}
+
+// Request message for DistributedTransaction.Delete and TwoPhaseCommitTransaction.Delete.
+message DeleteRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Delete.
+  repeated Delete deletes = 3;
+}
+
+// Response message for DistributedTransaction.Delete and TwoPhaseCommitTransaction.Delete.
+message DeleteResponse {
+}
+
+// Request message for DistributedTransaction.Mutate and TwoPhaseCommitTransaction.Mutate.
+message MutateRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the begun/joined transaction. If not specified, the operation is executed
+  // within a one-shot transaction.
+  optional string transaction_id = 2;
+
+  // The parameters for Mutation.
+  repeated Mutation mutations = 3;
+}
+
+// Response message for DistributedTransaction.Mutate and TwoPhaseCommitTransaction.Mutate.
+message MutateResponse {
+}
+
+// Request message for DistributedTransaction.Commit and TwoPhaseCommitTransaction.Commit.
+message CommitRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the transaction to commit.
+  string transaction_id = 2;
+}
+
+// Response message for DistributedTransaction.Commit and TwoPhaseCommitTransaction.Commit.
+message CommitResponse {
+}
+
+// Request message for DistributedTransaction.Rollback and TwoPhaseCommitTransaction.Rollback.
+message RollbackRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the transaction to rollback.
+  string transaction_id = 2;
+}
+
+// Response message for DistributedTransaction.Rollback and TwoPhaseCommitTransaction.Rollback.
+message RollbackResponse {
+}
+
+// Service that provides a two-phase commit transaction capability for ScalarDB Cluster.
+// See also: https://github.com/scalar-labs/scalardb/blob/master/docs/two-phase-commit-transactions.md
+//
+// First, you call `Begin` to initiate a transaction if you are the coordinator process.
+// Alternatively, if you are a participant process, you can call `Join` to take part in a
+// transaction that the coordinator has already begun. Then, you can call `Get` and `Scan` to read
+// records, `Put`, `Insert`, `Upsert`, `Update`, and `Mutate` to write records, and `Delete` and
+// `Mutate` to delete records. To finalize the transaction, call `Prepare`, `Validate`, and then
+// `Commit` in order. Alternatively, you can call `Rollback` at any time before the transaction is
+// committed to cancel it. By calling `Begin` or `Join`, you receive a transaction ID in the
+// response, which you can then use to call `Get`, `Scan`, `Put`, `Insert`, `Upsert`, `Update`,
+// `Delete`, `Mutate`, `Prepare`, `Validate`, `Commit`, and `Rollback`.
+//
+// Also, you can call `Get`, `Scan`, `Put`, `Insert`, `Upsert`, `Update`, `Delete`, `Mutate` without
+// a transaction ID. In this case, the operation is executed within a one-shot transaction.
+service TwoPhaseCommitTransaction {
+  // Begins a transaction.
+  rpc Begin(BeginRequest) returns (BeginResponse) {
+  }
+
+  // Joins a transaction.
+  rpc Join(JoinRequest) returns (JoinResponse) {
+  }
+
+  // Retrieves records.
+  rpc Get(GetRequest) returns (GetResponse) {
+  }
+
+  // Scans records.
+  rpc Scan(ScanRequest) returns (ScanResponse) {
+  }
+
+  // Puts records.
+  // This is deprecated As of release 3.13.0. Will be removed in release 5.0.0.
+  rpc Put(PutRequest) returns (PutResponse) {
+    option deprecated = true;
+  }
+
+  // Inserts records.
+  rpc Insert(InsertRequest) returns (InsertResponse) {
+  }
+
+  // Upserts records.
+  rpc Upsert(UpsertRequest) returns (UpsertResponse) {
+  }
+
+  // Updates records.
+  rpc Update(UpdateRequest) returns (UpdateResponse) {
+  }
+
+  // Deletes records.
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {
+  }
+
+  // Mutates (puts, deletes, inserts, upserts, and updates) multiple records.
+  rpc Mutate(MutateRequest) returns (MutateResponse) {
+  }
+
+  // Prepares a transaction.
+  rpc Prepare(PrepareRequest) returns (PrepareResponse) {
+  }
+
+  // Validates a transaction.
+  rpc Validate(ValidateRequest) returns (ValidateResponse) {
+  }
+
+  // Commits a transaction.
+  rpc Commit(CommitRequest) returns (CommitResponse) {
+  }
+
+  // Rolls back a transaction.
+  rpc Rollback(RollbackRequest) returns (RollbackResponse) {
+  }
+}
+
+// Request message for TwoPhaseCommitTransaction.Join.
+message JoinRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the transaction to join.
+  string transaction_id = 2;
+}
+
+// Response message for TwoPhaseCommitTransaction.Join.
+message JoinResponse {
+}
+
+// Request message for TwoPhaseCommitTransaction.Prepare.
+message PrepareRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the transaction to prepare.
+  string transaction_id = 2;
+}
+
+// Response message for TwoPhaseCommitTransaction.Prepare.
+message PrepareResponse {
+}
+
+// Request message for TwoPhaseCommitTransaction.Validate.
+message ValidateRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The transaction ID of the transaction to validate.
+  string transaction_id = 2;
+}
+
+// Response message for TwoPhaseCommitTransaction.Validate.
+message ValidateResponse {
+}
+
+// Service that provides comprehensive administrative operations.
+service DistributedTransactionAdmin {
+  // Creates a namespace.
+  rpc CreateNamespace(CreateNamespaceRequest) returns (CreateNamespaceResponse) {
+  }
+
+  // Drops a namespace.
+  rpc DropNamespace(DropNamespaceRequest) returns (DropNamespaceResponse) {
+  }
+
+  // Returns whether the specified namespace exists or not.
+  rpc NamespaceExists(NamespaceExistsRequest) returns (NamespaceExistsResponse) {
+  }
+
+  // Creates a table.
+  rpc CreateTable(CreateTableRequest) returns (CreateTableResponse) {
+  }
+
+  // Drops a table.
+  rpc DropTable(DropTableRequest) returns (DropTableResponse) {
+  }
+
+  // Truncates a table.
+  rpc TruncateTable(TruncateTableRequest) returns (TruncateTableResponse) {
+  }
+
+  // Returns whether the specified table exists or not.
+  rpc TableExists(TableExistsRequest) returns (TableExistsResponse) {
+  }
+
+  // Creates an index.
+  rpc CreateIndex(CreateIndexRequest) returns (CreateIndexResponse) {
+  }
+
+  // Drops an index.
+  rpc DropIndex(DropIndexRequest) returns (DropIndexResponse) {
+  }
+
+  // Returns whether the specified index exists or not.
+  rpc IndexExists(IndexExistsRequest) returns (IndexExistsResponse) {
+  }
+
+  // Repairs a namespace which may be in an unknown state.
+  rpc RepairNamespace(RepairNamespaceRequest) returns (RepairNamespaceResponse) {
+  }
+
+  // Repairs a table which may be in an unknown state.
+  rpc RepairTable(RepairTableRequest) returns (RepairTableResponse) {
+  }
+
+  // Adds a new column to a table.
+  rpc AddNewColumnToTable(AddNewColumnToTableRequest) returns (AddNewColumnToTableResponse){
+  }
+
+  // Creates the Coordinator tables.
+  rpc CreateCoordinatorTables(CreateCoordinatorTablesRequest) returns (CreateCoordinatorTablesResponse) {
+  }
+
+  // Drops the Coordinator tables.
+  rpc DropCoordinatorTables(DropCoordinatorTablesRequest) returns (DropCoordinatorTablesResponse) {
+  }
+
+  // Truncates the Coordinator tables.
+  rpc TruncateCoordinatorTables(TruncateCoordinatorTablesRequest) returns (TruncateCoordinatorTablesResponse) {
+  }
+
+  // Returns whether the Coordinator tables exist or not.
+  rpc CoordinatorTablesExist(CoordinatorTablesExistRequest) returns (CoordinatorTablesExistResponse) {
+  }
+
+  // Repairs the Coordinator tables.
+  rpc RepairCoordinatorTables(RepairCoordinatorTablesRequest) returns (RepairCoordinatorTablesResponse){
+  }
+
+  // Returns table metadata of the specified table.
+  rpc GetTableMetadata(GetTableMetadataRequest) returns (GetTableMetadataResponse) {
+  }
+
+  // Returns names of existing namespaces created through ScalarDB.
+  rpc GetNamespaceNames(GetNamespaceNamesRequest) returns (GetNamespaceNamesResponse) {
+  }
+
+  // Returns tables in the specified namespace.
+  rpc GetNamespaceTableNames(GetNamespaceTableNamesRequest) returns (GetNamespaceTableNamesResponse) {
+  }
+
+  // Imports an existing table that is not managed by ScalarDB.
+  rpc ImportTable(ImportTableRequest) returns (ImportTableResponse) {
+  }
+
+  // Upgrades the ScalarDB environment to support the latest version of the ScalarDB API.
+  rpc Upgrade(UpgradeRequest) returns (UpgradeResponse) {
+  }
+
+  //
+  // Auth related endpoints
+  //
+
+  // Creates a user with the given username, password and user options.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+  }
+
+  // Alters a user with the given username, password and user options.
+  rpc AlterUser(AlterUserRequest) returns (AlterUserResponse) {
+  }
+
+  // Drops a user with the given username.
+  rpc DropUser(DropUserRequest) returns (DropUserResponse) {
+  }
+
+  // Grants privileges to a user.
+  rpc Grant(GrantRequest) returns (GrantResponse) {
+  }
+
+  // Revokes privileges from a user.
+  rpc Revoke(RevokeRequest) returns (RevokeResponse) {
+  }
+
+  // Returns a user.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+  }
+
+  // Returns a list of users.
+  rpc GetUsers(GetUsersRequest) returns (GetUsersResponse) {
+  }
+
+  // Returns the current logged-in user.
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse) {
+  }
+
+  // Returns privileges for a user.
+  rpc GetPrivileges(GetPrivilegesRequest) returns (GetPrivilegesResponse) {
+  }
+
+  //
+  // Attribute-based access control (ABAC) related endpoints
+  //
+
+  // Creates a policy with the given name and data tag column name.
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
+  }
+
+  // Enables a policy that has the given name.
+  rpc EnablePolicy(EnablePolicyRequest) returns (EnablePolicyResponse) {
+  }
+
+  // Disables a policy that has the given name.
+  rpc DisablePolicy(DisablePolicyRequest) returns (DisablePolicyResponse) {
+  }
+
+  // Retrieves a policy that has the given name.
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
+  }
+
+  // Retrieves all policies.
+  rpc GetPolicies(GetPoliciesRequest) returns (GetPoliciesResponse) {
+  }
+
+  // Creates a level with the given short name, long name and level number for the given policy.
+  rpc CreateLevel(CreateLevelRequest) returns (CreateLevelResponse) {
+  }
+
+  // Drops a level that has the given short name for the given policy.
+  rpc DropLevel(DropLevelRequest) returns (DropLevelResponse) {
+  }
+
+  // Retrieves a level that has the given short name for the given policy.
+  rpc GetLevel(GetLevelRequest) returns (GetLevelResponse) {
+  }
+
+  // Retrieves all levels for the given policy.
+  rpc GetLevels(GetLevelsRequest) returns (GetLevelsResponse) {
+  }
+
+  // Creates a compartment with the given short name and long name for the given policy.
+  rpc CreateCompartment(CreateCompartmentRequest) returns (CreateCompartmentResponse) {
+  }
+
+  // Drops a compartment that has the given short name for the given policy.
+  rpc DropCompartment(DropCompartmentRequest) returns (DropCompartmentResponse) {
+  }
+
+  // Retrieves a compartment that has the given short name for the given policy.
+  rpc GetCompartment(GetCompartmentRequest) returns (GetCompartmentResponse) {
+  }
+
+  // Retrieves all compartments for the given policy.
+  rpc GetCompartments(GetCompartmentsRequest) returns (GetCompartmentsResponse) {
+  }
+
+  // Creates a group with the given short name, long name, and the short name of the parent group
+  // for the given policy.
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {
+  }
+
+  // Drops a group that has the given short name for the given policy.
+  rpc DropGroup(DropGroupRequest) returns (DropGroupResponse) {
+  }
+
+  // Retrieves a group that has the given short name for the given policy.
+  rpc GetGroup(GetGroupRequest) returns (GetGroupResponse) {
+  }
+
+  // Retrieves all groups for the given policy.
+  rpc getGroups(GetGroupsRequest) returns (GetGroupsResponse) {
+  }
+
+  // Sets the given levels of the given policy to a user that has the given username.
+  rpc SetLevelsToUser(SetLevelsToUserRequest) returns (SetLevelsToUserResponse) {
+  }
+
+  // Adds the given compartment of the given policy to a user that has the given username. Before
+  // adding the compartment, levels must be set to the user.
+  rpc AddCompartmentToUser(AddCompartmentToUserRequest) returns (AddCompartmentToUserResponse) {
+  }
+
+  // Removes the given compartment of the given policy from a user that has the given username.
+  rpc RemoveCompartmentFromUser(RemoveCompartmentFromUserRequest) returns (RemoveCompartmentFromUserResponse) {
+  }
+
+  // Adds the given group of the given policy to a user that has the given username. Before adding
+  // the group, levels must be set to the user.
+  rpc AddGroupToUser(AddGroupToUserRequest) returns (AddGroupToUserResponse) {
+  }
+
+  // Removes the given group of the given policy from a user that has the given username.
+  rpc RemoveGroupFromUser(RemoveGroupFromUserRequest) returns (RemoveGroupFromUserResponse) {
+  }
+
+  // Drops the user tag information of a user with the given username for the given policy.
+  rpc DropUserTagInfoFromUser(DropUserTagInfoFromUserRequest) returns (DropUserTagInfoFromUserResponse) {
+  }
+
+  // Retrieves the user tag information of a user with the given username for the given policy.
+  rpc GetUserTagInfo(GetUserTagInfoRequest) returns (GetUserTagInfoResponse) {
+  }
+
+  // Creates a namespace policy with the given policy and the given namespace.
+  rpc CreateNamespacePolicy(CreateNamespacePolicyRequest) returns (CreateNamespacePolicyResponse) {
+  }
+
+  // Enables a namespace policy that has the given name.
+  rpc EnableNamespacePolicy(EnableNamespacePolicyRequest) returns (EnableNamespacePolicyResponse) {
+  }
+
+  // Disables a namespace policy that has the given name.
+  rpc DisableNamespacePolicy(DisableNamespacePolicyRequest) returns (DisableNamespacePolicyResponse) {
+  }
+
+  // Retrieves a namespace policy that has the given name.
+  rpc GetNamespacePolicy(GetNamespacePolicyRequest) returns (GetNamespacePolicyResponse) {
+  }
+
+  // Retrieves all namespace policies.
+  rpc GetNamespacePolicies(GetNamespacePoliciesRequest) returns (GetNamespacePoliciesResponse) {
+  }
+
+  // Creates a table policy with the given policy and the given table.
+  rpc CreateTablePolicy(CreateTablePolicyRequest) returns (CreateTablePolicyResponse) {
+  }
+
+  // Enables a table policy that has the given name.
+  rpc EnableTablePolicy(EnableTablePolicyRequest) returns (EnableTablePolicyResponse) {
+  }
+
+  // Disables a table policy that has the given name.
+  rpc DisableTablePolicy(DisableTablePolicyRequest) returns (DisableTablePolicyResponse) {
+  }
+
+  // Retrieves a table policy that has the given name.
+  rpc GetTablePolicy(GetTablePolicyRequest) returns (GetTablePolicyResponse) {
+  }
+
+  // Retrieves all table policies.
+  rpc GetTablePolicies(GetTablePoliciesRequest) returns (GetTablePoliciesResponse) {
+  }
+}
+
+// Request message for DistributedTransactionAdmin.CreateNamespace.
+message CreateNamespaceRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace to create.
+  string namespace_name = 2;
+
+  // The creation options for the namespace to create.
+  map<string, string> options = 3;
+
+  // If set to true, the namespace will be created only if it does not exist already. If set to
+  // false, it will try to create the namespace but an error may occur if it already exists.
+  bool if_not_exists = 4;
+}
+
+// Response message for DistributedTransactionAdmin.CreateNamespace.
+message CreateNamespaceResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropNamespace.
+message DropNamespaceRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace to drop.
+  string namespace_name = 2;
+
+  // If set to true, the namespace will be dropped only if it exists. If set to false, it will try
+  // to drop the namespace but an error may occur if it does not exist.
+  bool if_exists = 3;
+}
+
+// Response message for DistributedTransactionAdmin.DropNamespace.
+message DropNamespaceResponse {
+}
+
+// Request message for DistributedTransactionAdmin.NamespaceExists.
+message NamespaceExistsRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace to check the existence.
+  string namespace_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.NamespaceExists.
+message NamespaceExistsResponse {
+  // Whether the specified namespace exists or not.
+  bool exists = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateTable.
+message CreateTableRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table to create.
+  string namespace_name = 2;
+
+  // The name of the table to create.
+  string table_name = 3;
+
+  // The table metadata for the table to create.
+  TableMetadata table_metadata = 4;
+
+  // The creation options for the table to create.
+  map<string, string> options = 5;
+
+  // If set to true, the table will be created only if it does not exist already. If set to false,
+  // it will try to create the table but an error may occur if it already exists.
+  bool if_not_exists = 6;
+}
+
+// Response message for DistributedTransactionAdmin.CreateTable.
+message CreateTableResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropTable.
+message DropTableRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table to drop.
+  string namespace_name = 2;
+
+  // The name of the table to drop.
+  string table_name = 3;
+
+  // If set to true, the table will be dropped only if it exists. If set to false, it will try to
+  // drop the table but an error may occur if it does not exist.
+  bool if_exists = 4;
+}
+
+// Response message for DistributedTransactionAdmin.DropTable.
+message DropTableResponse {
+}
+
+// Request message for DistributedTransactionAdmin.TruncateTable.
+message TruncateTableRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table to truncate.
+  string namespace_name = 2;
+
+  // The name of the table to truncate.
+  string table_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.TruncateTable.
+message TruncateTableResponse {
+}
+
+// Request message for DistributedTransactionAdmin.TableExists.
+message TableExistsRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table to check the existence.
+  string namespace_name = 2;
+
+  // The name of the table to check the existence.
+  string table_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.TableExists.
+message TableExistsResponse {
+  // Whether the specified table exists or not.
+  bool exists = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateIndex.
+message CreateIndexRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table for the target column.
+  string namespace_name = 2;
+
+  // The name of the table for the target column.
+  string table_name = 3;
+
+  // The name of the target column.
+  string column_name = 4;
+
+  // The creation options for the index to create.
+  map<string, string> options = 5;
+
+  // If set to true, the index will be created only if it does not exist already. If set to false,
+  // it will try to create the index but an error may occur if it already exists.
+  bool if_not_exists = 6;
+}
+
+// Response message for DistributedTransactionAdmin.CreateIndex.
+message CreateIndexResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropIndex.
+message DropIndexRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table for the target column.
+  string namespace_name = 2;
+
+  // The name of the table for the target column.
+  string table_name = 3;
+
+  // The name of the target column.
+  string column_name = 4;
+
+  // If set to true, the index will be dropped only if it exists. If set to false, it will try to
+  // drop the index but an error may occur if it does not exist.
+  bool if_exists = 5;
+}
+
+// Response message for DistributedTransactionAdmin.DropIndex.
+message DropIndexResponse {
+}
+
+// Request message for DistributedTransactionAdmin.IndexExists.
+message IndexExistsRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table for the target column.
+  string namespace_name = 2;
+
+  // The name of the table for the target column.
+  string table_name = 3;
+
+  // The name of the target column.
+  string column_name = 4;
+}
+
+// Response message for DistributedTransactionAdmin.IndexExists.
+message IndexExistsResponse {
+  // Whether the specified index exists or not.
+  bool exists = 1;
+}
+
+// Request message for DistributedTransactionAdmin.RepairNamespace.
+message RepairNamespaceRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace to repair.
+  string namespace_name = 2;
+
+  // The creation options for the namespace to repair.
+  map<string, string> options = 3;
+}
+
+// Response message for DistributedTransactionAdmin.RepairNamespace.
+message RepairNamespaceResponse {
+}
+
+// Request message for DistributedTransactionAdmin.RepairTable.
+message RepairTableRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the table to repair.
+  string namespace_name = 2;
+
+  // The name of the table to repair.
+  string table_name = 3;
+
+  // The table metadata for the table to repair.
+  TableMetadata table_metadata = 4;
+
+  // The creation options for the table to repair.
+  map<string, string> options = 5;
+}
+
+// Response message for DistributedTransactionAdmin.RepairTable.
+message RepairTableResponse {
+}
+
+// Request message for DistributedTransactionAdmin.AddNewColumnToTable.
+message AddNewColumnToTableRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the target table.
+  string namespace_name = 2;
+
+  // The name of the target table.
+  string table_name = 3;
+
+  // The name of the column to add.
+  string column_name = 4;
+
+  // The data type of the column to add.
+  DataType column_data_type = 5;
+
+  // Whether the column is encrypted or not.
+  bool encrypted = 6;
+}
+
+// Response message for DistributedTransactionAdmin.AddNewColumnToTable.
+message AddNewColumnToTableResponse {
+}
+
+// Request message for DistributedTransactionAdmin.CreateCoordinatorTables.
+message CreateCoordinatorTablesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The creation options for the Coordinator table.
+  map<string, string> options = 2;
+
+  // If set to true, the Coordinator tables will be created only if it does not exist already. If
+  // set to false, it will try to create the Coordinator tables but an error may occur if it
+  // already exists.
+  bool if_not_exist = 3;
+}
+
+// Response message for DistributedTransactionAdmin.CreateCoordinatorTables.
+message CreateCoordinatorTablesResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropCoordinatorTables.
+message DropCoordinatorTablesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // If set to true, the Coordinator tables will be dropped only if it exists. If set to false, it
+  // will try to drop the Coordinator tables but an error may occur if it does not exist.
+  bool if_exist = 2;
+}
+
+// Response message for DistributedTransactionAdmin.DropCoordinatorTables.
+message DropCoordinatorTablesResponse {
+}
+
+// Request message for DistributedTransactionAdmin.TruncateCoordinatorTables.
+message TruncateCoordinatorTablesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.TruncateCoordinatorTables.
+message TruncateCoordinatorTablesResponse {
+}
+
+// Request message for DistributedTransactionAdmin.CoordinatorTablesExist.
+message CoordinatorTablesExistRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.CoordinatorTablesExist.
+message CoordinatorTablesExistResponse {
+  // Whether the Coordinator tables exist or not.
+  bool exist = 1;
+}
+
+// Request message for DistributedTransactionAdmin.RepairCoordinatorTables.
+message RepairCoordinatorTablesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The creation options for the Coordinator tables.
+  map<string, string> options = 2;
+}
+
+// Response message for DistributedTransactionAdmin.RepairCoordinatorTables.
+message RepairCoordinatorTablesResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetTableMetadata.
+message GetTableMetadataRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the target table.
+  string namespace_name = 2;
+
+  // The name of the target table.
+  string table_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.GetTableMetadata.
+message GetTableMetadataResponse {
+  // The table metadata for the specified table.
+  optional TableMetadata table_metadata = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetNamespaceNames.
+message GetNamespaceNamesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.GetNamespaceNames.
+message GetNamespaceNamesResponse {
+  // The namespace names.
+  repeated string namespace_names = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetNamespaceTableNames.
+message GetNamespaceTableNamesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the target namespace.
+  string namespace_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetNamespaceTableNames.
+message GetNamespaceTableNamesResponse {
+  // The table names in the specified namespace.
+  repeated string table_names = 1;
+}
+
+// Request message for DistributedTransactionAdmin.ImportTable.
+message ImportTableRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the namespace for the target table.
+  string namespace_name = 2;
+
+  // The name of the target table.
+  string table_name = 3;
+
+  // The options to import.
+  map<string, string> options = 4;
+
+  // The map of column data type by column name. Only set the column for which you want to override
+  // the default data type mapping.
+  map<string, DataType> override_columns_type = 5;
+}
+
+// Response message for DistributedTransactionAdmin.ImportTable.
+message ImportTableResponse {
+}
+
+// Request message for DistributedTransactionAdmin.Upgrade.
+message UpgradeRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The options to upgrade.
+  map<string, string> options = 2;
+}
+
+// Response message for DistributedTransactionAdmin.Upgrade.
+message UpgradeResponse {
+}
+
+//
+// Auth related messages
+//
+
+// A user option.
+enum UserOption {
+  // The default / unset value.
+  USER_OPTION_UNSPECIFIED = 0;
+
+  // If specified, the user is created as a superuser
+  USER_OPTION_SUPERUSER = 1;
+
+  // If specified, the user is created as a non-superuser. If neither USER_OPTION_SUPERUSER nor
+  // USER_OPTION_NO_SUPERUSER is specified, the user is created as a non-superuser.
+  USER_OPTION_NO_SUPERUSER = 2;
+}
+
+// Request message for DistributedTransactionAdmin.CreateUser.
+message CreateUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to create.
+  string username = 2;
+
+  // The password of the user to create. If not set, the user is created without a password.
+  optional string password = 3;
+
+  // The user options for the user to create.
+  repeated UserOption user_options = 4;
+}
+
+// Response message for DistributedTransactionAdmin.CreateUser.
+message CreateUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.AlterUser.
+message AlterUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to alter.
+  string username = 2;
+
+  // The password of the user to alter. If not set, the password is not changed. If set to an empty
+  // string, the password is removed.
+  optional string password = 3;
+
+  // The user options for the user to alter.
+  repeated UserOption user_options = 4;
+}
+
+// Response message for DistributedTransactionAdmin.AlterUser.
+message AlterUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropUser.
+message DropUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to drop.
+  string username = 2;
+}
+
+// Response message for DistributedTransactionAdmin.DropUser.
+message DropUserResponse {
+}
+
+// A privilege.
+enum Privilege {
+  // The default / unset value.
+  PRIVILEGE_UNSPECIFIED = 0;
+
+  // The privilege for read (Get and Scan) operations.
+  PRIVILEGE_READ = 1;
+
+  // The privilege for write (Put, Insert, Upsert, and Update) operations.
+  PRIVILEGE_WRITE = 2;
+
+  // The privilege for delete (Delete) operations.
+  PRIVILEGE_DELETE = 3;
+
+  // The privilege for creating tables and indexes.
+  PRIVILEGE_CREATE = 4;
+
+  // The privilege for dropping tables and indexes.
+  PRIVILEGE_DROP = 5;
+
+  // The privilege for truncating tables.
+  PRIVILEGE_TRUNCATE = 6;
+
+  // The privilege for altering tables.
+  PRIVILEGE_ALTER = 7;
+
+  // The privilege for granting and revoking privileges to other users.
+  PRIVILEGE_GRANT = 8;
+}
+
+// Request message for DistributedTransactionAdmin.Grant.
+message GrantRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to grant.
+  string username = 2;
+
+  // The namespace name to grant.
+  string namespace_name = 3;
+
+  // The table name to grant. If not set, it grants privileges on all tables in the given
+  // namespace.
+  optional string table_name = 4;
+
+  // The privileges to grant.
+  repeated Privilege privileges = 5;
+}
+
+// Response message for DistributedTransactionAdmin.Grant.
+message GrantResponse {
+}
+
+// Request message for DistributedTransactionAdmin.Revoke.
+message RevokeRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to revoke.
+  string username = 2;
+
+  // The namespace name to revoke.
+  string namespace_name = 3;
+
+  // The table name to revoke. If not set, it revokes privileges on all tables in the given
+  // namespace.
+  optional string table_name = 4;
+
+  // The privileges to revoke.
+  repeated Privilege privileges = 5;
+}
+
+// Response message for DistributedTransactionAdmin.Revoke.
+message RevokeResponse {
+}
+
+// A user.
+message User {
+  // The name of the user.
+  string name = 1;
+
+  // Whether the user is a superuser or not.
+  bool superuser = 2;
+}
+
+// Request message for DistributedTransactionAdmin.GetUser.
+message GetUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to get.
+  string username = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetUser.
+message GetUserResponse {
+  // The user.
+  optional User user = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetUsers.
+message GetUsersRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.GetUsers.
+message GetUsersResponse {
+  // The users.
+  repeated User users = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetCurrentUser.
+message GetCurrentUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.GetCurrentUser.
+message GetCurrentUserResponse {
+  // The current logged-in user.
+  User user = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetPrivileges.
+message GetPrivilegesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The name of the user to get privileges.
+  string username = 2;
+
+  // The namespace name to get privileges.
+  string namespace_name = 3;
+
+  // The table name to get privileges. If not set, it returns privileges on all tables in the given
+  // namespace.
+  optional string table_name = 4;
+}
+
+// Response message for DistributedTransactionAdmin.GetPrivileges.
+message GetPrivilegesResponse {
+  // The privileges.
+  repeated Privilege privileges = 1;
+}
+
+//
+// Attribute-Based Access Control (ABAC) related messages
+//
+
+// Request message for DistributedTransactionAdmin.CreatePolicy.
+message CreatePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The data tag column name. If not set, the default data tag column name is used.
+  optional string data_tag_column_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.CreatePolicy.
+message CreatePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.EnablePolicy.
+message EnablePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.EnablePolicy.
+message EnablePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DisablePolicy.
+message DisablePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.DisablePolicy.
+message DisablePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetPolicy.
+message GetPolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetPolicy.
+message GetPolicyResponse {
+  // The policy.
+  optional Policy policy = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetPolicies.
+message GetPoliciesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.GetPolicies.
+message GetPoliciesResponse {
+  // The policies.
+  repeated Policy policies = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateLevel.
+message CreateLevelRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the level.
+  string level_short_name = 3;
+
+  // The long name of the level.
+  string level_long_name = 4;
+
+  // The level number.
+  int32 level_number = 5;
+}
+
+// Response message for DistributedTransactionAdmin.CreateLevel.
+message CreateLevelResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropLevel.
+message DropLevelRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the level.
+  string level_short_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.DropLevel.
+message DropLevelResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetLevel.
+message GetLevelRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the level.
+  string level_short_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.GetLevel.
+message GetLevelResponse {
+  // The level.
+  optional Level level = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetLevels.
+message GetLevelsRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetLevels.
+message GetLevelsResponse {
+  // The levels.
+  repeated Level levels = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateCompartment.
+message CreateCompartmentRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the compartment.
+  string compartment_short_name = 3;
+
+  // The long name of the compartment.
+  string compartment_long_name = 4;
+}
+
+// Response message for DistributedTransactionAdmin.CreateCompartment.
+message CreateCompartmentResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropCompartment.
+message DropCompartmentRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the compartment.
+  string compartment_short_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.DropCompartment.
+message DropCompartmentResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetCompartment.
+message GetCompartmentRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the compartment.
+  string compartment_short_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.GetCompartment.
+message GetCompartmentResponse {
+  // The compartment.
+  optional Compartment compartment = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetCompartments.
+message GetCompartmentsRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetCompartments.
+message GetCompartmentsResponse {
+  // The compartments.
+  repeated Compartment compartments = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateGroup.
+message CreateGroupRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the group.
+  string group_short_name = 3;
+
+  // The long name of the group.
+  string group_long_name = 4;
+
+  // The short name of the parent group. If not set, the group is a top-level group.
+  optional string parent_group_short_name = 5;
+}
+
+// Response message for DistributedTransactionAdmin.CreateGroup.
+message CreateGroupResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropGroup.
+message DropGroupRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the group.
+  string group_short_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.DropGroup.
+message DropGroupResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetGroup.
+message GetGroupRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The short name of the group.
+  string group_short_name = 3;
+}
+
+// Response message for DistributedTransactionAdmin.GetGroup.
+message GetGroupResponse {
+  // The group.
+  optional Group group = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetGroups.
+message GetGroupsRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetGroups.
+message GetGroupsResponse {
+  // The groups.
+  repeated Group groups = 1;
+}
+
+// Request message for DistributedTransactionAdmin.SetLevelsToUser.
+message SetLevelsToUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+
+  // The short name of the level to set.
+  string level_short_name = 4;
+
+  // The short name of the default level. If not set, `level_short_name` will be used as the default
+  // level.
+  optional string default_level_short_name = 5;
+
+  // The short name of the row level. If not set, `default_level_short_name` will be used as the row
+  // level.
+  optional string row_level_short_name = 6;
+}
+
+// Response message for DistributedTransactionAdmin.SetLevelsToUser.
+message SetLevelsToUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.AddCompartmentToUser.
+message AddCompartmentToUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+
+  // The short name of the compartment.
+  string compartment_short_name = 4;
+
+  // The access mode.
+  AccessMode access_mode = 5;
+
+  // Whether the compartment is a default compartment.
+  bool default_compartment = 6;
+
+  // Whether the compartment is a row compartment.
+  bool row_compartment = 7;
+}
+
+// Response message for DistributedTransactionAdmin.AddCompartmentToUser.
+message AddCompartmentToUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.RemoveCompartmentFromUser.
+message RemoveCompartmentFromUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+
+  // The short name of the compartment.
+  string compartment_short_name = 4;
+}
+
+// Response message for DistributedTransactionAdmin.RemoveCompartmentFromUser.
+message RemoveCompartmentFromUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.AddGroupToUser.
+message AddGroupToUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+
+  // The short name of the group.
+  string group_short_name = 4;
+
+  // The access mode.
+  AccessMode access_mode = 5;
+
+  // Whether the group is a default group.
+  bool default_group = 6;
+
+  // Whether the group is a row group.
+  bool row_group = 7;
+}
+
+// Response message for DistributedTransactionAdmin.AddGroupToUser.
+message AddGroupToUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.RemoveGroupFromUser.
+message RemoveGroupFromUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+
+  // The short name of the group.
+  string group_short_name = 4;
+}
+
+// Response message for DistributedTransactionAdmin.RemoveGroupFromUser.
+message RemoveGroupFromUserResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DropUserTagInfoFromUser.
+message DropUserTagInfoFromUserRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+}
+
+// Response message for DistributedTransactionAdmin.DropUserTagInfoFromUser.
+message DropUserTagInfoFromUserResponse {
+}
+
+// Response message for DistributedTransactionAdmin.GetUserTagInfo.
+message GetUserTagInfoRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The policy name.
+  string policy_name = 2;
+
+  // The username.
+  string username = 3;
+}
+
+// Response message for DistributedTransactionAdmin.GetUserTagInfo.
+message GetUserTagInfoResponse {
+  // The user tag information.
+  optional UserTagInfo user_tag_info = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateNamespacePolicy.
+message CreateNamespacePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The namespace policy name.
+  string namespace_policy_name = 2;
+
+  // The policy name.
+  string policy_name = 3;
+
+  // The namespace name.
+  string namespace_name = 4;
+}
+
+// Response message for DistributedTransactionAdmin.CreateNamespacePolicy.
+message CreateNamespacePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.EnableNamespacePolicy.
+message EnableNamespacePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The namespace policy name.
+  string namespace_policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.EnableNamespacePolicy.
+message EnableNamespacePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DisableNamespacePolicy.
+message DisableNamespacePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The namespace policy name.
+  string namespace_policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.DisableNamespacePolicy.
+message DisableNamespacePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetNamespacePolicy.
+message GetNamespacePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The namespace policy name.
+  string namespace_policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetNamespacePolicy.
+message GetNamespacePolicyResponse {
+  // The namespace policy.
+  optional NamespacePolicy namespace_policy = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetNamespacePolicies.
+message GetNamespacePoliciesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.GetNamespacePolicies.
+message GetNamespacePoliciesResponse {
+  // The namespace policies.
+  repeated NamespacePolicy namespace_policies = 1;
+}
+
+// Request message for DistributedTransactionAdmin.CreateTablePolicy.
+message CreateTablePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The table policy name.
+  string table_policy_name = 2;
+
+  // The policy name.
+  string policy_name = 3;
+
+  // The namespace name.
+  string namespace_name = 4;
+
+  // The table name.
+  string table_name = 5;
+}
+
+// Response message for DistributedTransactionAdmin.CreateTablePolicy.
+message CreateTablePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.EnableTablePolicy.
+message EnableTablePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The table policy name.
+  string table_policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.EnableTablePolicy.
+message EnableTablePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.DisableTablePolicy.
+message DisableTablePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The table policy name.
+  string table_policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.DisableTablePolicy.
+message DisableTablePolicyResponse {
+}
+
+// Request message for DistributedTransactionAdmin.GetTablePolicy.
+message GetTablePolicyRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+
+  // The table policy name.
+  string table_policy_name = 2;
+}
+
+// Response message for DistributedTransactionAdmin.GetTablePolicy.
+message GetTablePolicyResponse {
+  // The table policy.
+  optional TablePolicy table_policy = 1;
+}
+
+// Request message for DistributedTransactionAdmin.GetTablePolicies.
+message GetTablePoliciesRequest {
+  // Request header.
+  RequestHeader request_header = 1;
+}
+
+// Response message for DistributedTransactionAdmin.GetTablePolicies.
+message GetTablePoliciesResponse {
+  // The table policies.
+  repeated TablePolicy table_policies = 1;
+}
+
+// A state of a policy.
+enum PolicyState {
+  // The default / unset value.
+  POLICY_STATE_UNSPECIFIED = 0;
+
+  // The policy is enabled.
+  POLICY_STATE_ENABLED = 1;
+
+  // The policy is disabled.
+  POLICY_STATE_DISABLED = 2;
+}
+
+// An access mode.
+enum AccessMode {
+  // The default / unset value.
+  ACCESS_MODE_UNSPECIFIED = 0;
+
+  // The access mode for read only.
+  ACCESS_MODE_READ_ONLY = 1;
+
+  // The access mode for read and write.
+  ACCESS_MODE_READ_WRITE = 2;
+}
+
+// A policy for ABAC.
+message Policy {
+  // The name of the policy.
+  string name = 1;
+
+  // The data tag column name for the policy.
+  string data_tag_column_name = 2;
+
+  // The state of the policy.
+  PolicyState state = 3;
+}
+
+// A level that is one of the components of a tag in ABAC.
+message Level {
+  // The name of the policy.
+  string policy_name = 1;
+
+  // The short name of the level.
+  string short_name = 2;
+
+  // The long name of the level.
+  string long_name = 3;
+
+  // The level number of the level.
+  int32 level_number = 4;
+}
+
+// A compartment that is one of the components of a tag in ABAC.
+message Compartment {
+  // The name of the policy.
+  string policy_name = 1;
+
+  // The short name of the compartment.
+  string short_name = 2;
+
+  // The long name of the compartment.
+  string long_name = 3;
+}
+
+// A group that is one of the components of a tag in ABAC.
+message Group {
+  // The name of the policy.
+  string policy_name = 1;
+
+  // The short name of the group.
+  string short_name = 2;
+
+  // The long name of the group.
+  string long_name = 3;
+
+  // The parent group short name of the group.
+  optional string parent_group_short_name = 4;
+}
+
+// User tag information.
+message UserTagInfo {
+  // The level information.
+  message LevelInfo {
+    // The short name of the level.
+    string level_short_name = 1;
+
+    // The short name of the default level.
+    string default_level_short_name = 2;
+
+    // The short name of the row level.
+    string row_level_short_name = 3;
+  }
+
+  // The compartment information.
+  message CompartmentInfo {
+    // The short names of the compartments that the user has read access to.
+    repeated string read_compartment_short_names = 1;
+
+    // The short names of the compartments that the user has write access to.
+    repeated string write_compartment_short_names = 2;
+
+    // The short names of the default compartments that the user has read access to.
+    repeated string default_read_compartment_short_names = 3;
+
+    // The short names of the default compartments that the user has write access to.
+    repeated string default_write_compartment_short_names = 4;
+
+    // The short names of the row compartments.
+    repeated string row_compartment_short_names = 5;
+  }
+
+  // The group information.
+  message GroupInfo {
+    // The short names of the groups that the user has read access to.
+    repeated string read_group_short_names = 1;
+
+    // The short names of the groups that the user has write access to.
+    repeated string write_group_short_names = 2;
+
+    // The short names of the default groups that the user has read access to.
+    repeated string default_read_group_short_names = 3;
+
+    // The short names of the default groups that the user has write access to.
+    repeated string default_write_group_short_names = 4;
+
+    // The short names of the row groups.
+    repeated string row_group_short_names = 5;
+  }
+
+  // The name of the policy.
+  string policy_name = 1;
+
+  // The name of the user.
+  string username = 2;
+
+  // The level information.
+  LevelInfo level_info = 3;
+
+  // The compartment information.
+  CompartmentInfo compartment_info = 4;
+
+  // The group information.
+  GroupInfo group_info = 5;
+}
+
+// A namespace policy.
+message NamespacePolicy {
+  // The name of the namespace policy.
+  string name = 1;
+
+  // The name of the policy.
+  string policy_name = 2;
+
+  // The name of the namespace.
+  string namespace_name = 3;
+
+  // The state of the policy.
+  PolicyState state = 4;
+}
+
+// A table policy.
+message TablePolicy {
+  // The name of the table policy.
+  string name = 1;
+
+  // The name of the policy.
+  string policy_name = 2;
+
+  // The name of the namespace.
+  string namespace_name = 3;
+
+  // The name of the table.
+  string table_name = 4;
+
+  // The state of the policy.
+  PolicyState state = 5;
+}
